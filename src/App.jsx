@@ -65,9 +65,39 @@ const useStorageState = (initialState, key) => {
 
 const App = () => {
   const title = 'My Boardgames'
-  const [boardGames, setBoardGames] = React.useState(initialBoardGameList);
+
+  const [boardGames, setBoardGames] = React.useState([]);
+  const [isError, setIsError] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(false);
+
+  const getAsyncBoardGames = () =>
+    new Promise((resolve) =>
+      setTimeout(
+        () => resolve(
+          { 
+            data: 
+            { 
+              boardGames: initialBoardGameList
+            }
+          }
+        ),
+        2000
+      )
+    );
+
   
-  const [searchTerm, setSearchTerm] = useStorageState('World', 'boardGameSearch')
+
+  React.useEffect(() => {
+    setIsLoading(true);
+    getAsyncBoardGames().then(result => {
+      setBoardGames(result.data.boardGames);
+      setIsLoading(false);
+    })
+    .catch(() => setIsError(true));
+
+  }, []);
+  
+  const [searchTerm, setSearchTerm] = useStorageState('', 'boardGameSearch')
 
   const handleSearch = (event) => {
     setSearchTerm(event.target.value);
@@ -84,6 +114,7 @@ const App = () => {
   const boardGameSearch = boardGames.filter(
     boardGame => boardGame.title.toLocaleLowerCase().includes(searchTerm.toLowerCase())
   )
+  
 
   return (
     <>
@@ -95,8 +126,13 @@ const App = () => {
         onChange={handleSearch} value={searchTerm}>
           <b>Search for: </b>
       </InputWithLabel>
+      
+      {isError && <p>Something went wrong ...</p>}
 
-      <List list={boardGameSearch} onRemoveItem={handleRemoveBoardGame}/>
+      {isLoading ? (<p>Is Loading...</p>) : (
+        <List list={boardGameSearch} onRemoveItem={handleRemoveBoardGame}/>
+      )}
+      
       <SearchForMindbugButton onChange={setSearchTerm}/>
     </>
   )
