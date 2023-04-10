@@ -61,40 +61,66 @@ const useStorageState = (initialState, key) => {
 
   return [searchTerm, setSearchTerm]
 }
+
+const getAsyncBoardGames = () =>
+new Promise((resolve) =>
+  setTimeout(
+    () => resolve(
+      { 
+        data: 
+        { 
+          boardGames: initialBoardGameList
+        }
+      }
+    ),
+    2000
+  )
+);
+
+
+const boardGamesReducer = (state, action) => {
+  switch(action.type){
+    case 'SET_BOARDGAMES':
+      return action.payload;
+    case 'REMOVE_BOARDGAME':
+      return state.filter(
+        (boardGame) => action.payload.objectId !== boardGame.objectId
+      );
+    default:
+      throw new Error();
+  }
+}
+
+
 //Components
 
 const App = () => {
   const title = 'My Boardgames'
 
-  const [boardGames, setBoardGames] = React.useState([]);
+  //const [boardGames, setBoardGames] = React.useState([]);
+
+  const [boardGames, dispatchBoardGames] = React.useReducer(
+    boardGamesReducer,
+    []
+  )
+
   const [isError, setIsError] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
 
-  const getAsyncBoardGames = () =>
-    new Promise((resolve) =>
-      setTimeout(
-        () => resolve(
-          { 
-            data: 
-            { 
-              boardGames: initialBoardGameList
-            }
-          }
-        ),
-        2000
-      )
-    );
 
-  
 
   React.useEffect(() => {
     setIsLoading(true);
-    getAsyncBoardGames().then(result => {
-      setBoardGames(result.data.boardGames);
-      setIsLoading(false);
-    })
-    .catch(() => setIsError(true));
 
+      getAsyncBoardGames()
+        .then((result) => {
+            dispatchBoardGames({
+            type: 'SET_BOARDGAMES',
+            payload: result.data.boardGames
+          });
+        setIsLoading(false);
+      })
+      .catch(() => setIsError(true))
   }, []);
   
   const [searchTerm, setSearchTerm] = useStorageState('', 'boardGameSearch')
@@ -104,11 +130,10 @@ const App = () => {
   }
 
   const handleRemoveBoardGame = (item) => {
-    const newBoardGames = boardGames.filter(
-      (boardGame) => item.objectId !== boardGame.objectId
-    )
-
-    setBoardGames(newBoardGames);
+    dispatchBoardGames({
+      type: 'REMOVE_BOARDGAME',
+      payload: item,
+    });
   };
 
   const boardGameSearch = boardGames.filter(
@@ -134,6 +159,7 @@ const App = () => {
       )}
       
       <SearchForMindbugButton onChange={setSearchTerm}/>
+      <RandomNumberButton />
     </>
   )
 }
@@ -197,4 +223,57 @@ const SearchForMindbugButton = ({onChange}) =>{
   )
 }
 
+const RandomNumberButton = () => {
+  const getRandomNumber = () => (
+    Math.floor(Math.random() * 100) + 1
+  );
+
+  const [randomNumber, setRandomNumber] = React.useState(getRandomNumber());
+  const [isLoadingNumber, setIsLoadingNumber] = React.useState(false);
+
+  const handleRandom = () => {
+    setIsLoadingNumber(true);
+    getAsyncRandomNumber().then(
+      result => {
+        setRandomNumber(result.data.number);
+      }
+    ).catch(result => {
+        setRandomNumber(result);
+      }
+    ).finally(() => {
+        setIsLoadingNumber(false);
+      }
+    )
+  }
+  
+  const getAsyncRandomNumber = () => (
+    new Promise((resolve, reject) => {
+      const success = true;
+      setTimeout(() => {
+        if(success){
+          resolve (
+            { 
+              data:
+              {number: getRandomNumber()}
+            })
+        }else{
+          reject ('Unsuccessful')
+        }
+      }, 2000)
+    })
+  )
+
+  return(
+    <>
+      <button onClick={() => {handleRandom()}}>
+        {isLoadingNumber? 'Loading...' : randomNumber}
+      </button>
+    </>
+  )
+}
+
 export default App
+
+
+
+
