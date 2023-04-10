@@ -63,7 +63,7 @@ const useStorageState = (initialState, key) => {
 }
 
 const getAsyncBoardGames = () =>
-new Promise((resolve) =>
+new Promise((resolve, reject) =>
   setTimeout(
     () => resolve(
       { 
@@ -80,12 +80,33 @@ new Promise((resolve) =>
 
 const boardGamesReducer = (state, action) => {
   switch(action.type){
-    case 'SET_BOARDGAMES':
-      return action.payload;
+    case 'BOARDGAMES_FETCH_INIT':
+      return {
+        ...state,
+        isLoading: true,
+        isError: false,
+      };
+    case 'BOARDGAMES_FETCH_SUCCESS':
+      return {
+        ...state,
+        isLoading: false,
+        isError: false,
+        data: action.payload
+      };
+    case 'BOARDGAMES_FETCH_FAILURE':
+      return {
+        ...state,
+        isLoading: false,
+        isError: true,
+      };
     case 'REMOVE_BOARDGAME':
-      return state.filter(
-        (boardGame) => action.payload.objectId !== boardGame.objectId
-      );
+      return {
+        ...state,
+        data: state.data.filter(
+          (boardGame) => action.payload.objectId !== boardGame.objectId
+        ),
+      }
+
     default:
       throw new Error();
   }
@@ -97,30 +118,19 @@ const boardGamesReducer = (state, action) => {
 const App = () => {
   const title = 'My Boardgames'
 
-  //const [boardGames, setBoardGames] = React.useState([]);
-
   const [boardGames, dispatchBoardGames] = React.useReducer(
     boardGamesReducer,
-    []
+    {data: [], isLoading: false, isError: false }
   )
 
-  const [isError, setIsError] = React.useState(false);
-  const [isLoading, setIsLoading] = React.useState(false);
-
-
-
   React.useEffect(() => {
-    setIsLoading(true);
+    dispatchBoardGames({ type: 'BOARDGAMES_FETCH_INIT' });
 
       getAsyncBoardGames()
         .then((result) => {
-            dispatchBoardGames({
-            type: 'SET_BOARDGAMES',
-            payload: result.data.boardGames
-          });
-        setIsLoading(false);
+          dispatchBoardGames({ type: 'BOARDGAMES_FETCH_SUCCESS', payload: result.data.boardGames });
       })
-      .catch(() => setIsError(true))
+      .catch(() => dispatchBoardGames({ type: 'BOARDGAMES_FETCH_FAILURE' }))
   }, []);
   
   const [searchTerm, setSearchTerm] = useStorageState('', 'boardGameSearch')
@@ -136,7 +146,7 @@ const App = () => {
     });
   };
 
-  const boardGameSearch = boardGames.filter(
+  const boardGameSearch = boardGames.data.filter(
     boardGame => boardGame.title.toLocaleLowerCase().includes(searchTerm.toLowerCase())
   )
   
@@ -152,14 +162,17 @@ const App = () => {
           <b>Search for: </b>
       </InputWithLabel>
       
-      {isError && <p>Something went wrong ...</p>}
+      {boardGames.isError && <p>Something went wrong ...</p>}
 
-      {isLoading ? (<p>Is Loading...</p>) : (
+      {boardGames.isLoading ? (<p>Is Loading...</p>) : (
         <List list={boardGameSearch} onRemoveItem={handleRemoveBoardGame}/>
       )}
       
       <SearchForMindbugButton onChange={setSearchTerm}/>
       <RandomNumberButton />
+      <hr/>
+      <WeekList />
+
     </>
   )
 }
@@ -245,7 +258,7 @@ const RandomNumberButton = () => {
       }
     )
   }
-  
+
   const getAsyncRandomNumber = () => (
     new Promise((resolve, reject) => {
       const success = true;
@@ -271,6 +284,75 @@ const RandomNumberButton = () => {
     </>
   )
 }
+
+
+const WeekList = () => {
+  const week = ['Monday','Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const week2 = ['Monday2','Tuesday2', 'Wednesday2', 'Thursday2', 'Friday2', 'Saturday2', 'Sunday2'];
+
+  const weekReducer = (state, action) => {
+    switch(action.type){
+      case ACTIONS.SET_WEEK:
+        return action.payload;
+      case ACTIONS.SET_WEEK2:
+        return week2;
+      case ACTIONS.REVERSE_WEEK:
+        return state.slice().reverse();
+      case ACTIONS.RESET_WEEK:
+        return week;
+      case ACTIONS.DELETE_DAY:
+          return state.filter(i => i !== action.payload);
+      default:
+        throw new Error();
+    }
+  }
+
+  const ACTIONS ={
+    SET_WEEK: 'SET_WEEK',
+    SET_WEEK2: 'SET_WEEK2',
+    REVERSE_WEEK: 'REVERSE_WEEK',
+    RESET_WEEK: 'RESET_WEEK',
+    DELETE_DAY: 'DELETE_DAY',
+  }
+
+  const[weekList, dispatchWeek] = React.useReducer(weekReducer, week);
+
+  //const [weekList, setWeekList] = React.useState(week);
+  
+  const deleteDay = (item) => {
+    dispatchWeek(
+      {
+        type: ACTIONS.DELETE_DAY,
+        payload: item
+      }
+    );
+  }
+
+  return(
+    <>
+      <ul>
+        {
+          weekList.map((item) => 
+          <li key={item}>
+            <WeekListItem item={item} onDelete={deleteDay}/>
+          </li>
+          
+          )
+        }
+      </ul>
+      <button onClick={()=> dispatchWeek({ type: ACTIONS.RESET_WEEK })}>Reset days</button>
+      <button onClick={()=> dispatchWeek({ type: ACTIONS.REVERSE_WEEK })}>Reverse</button>
+      <button onClick={()=> dispatchWeek({ type: ACTIONS.SET_WEEK2 })}>Switch</button>
+    </>
+  )
+}
+
+const WeekListItem = ({item, onDelete}) =>(
+  <>
+    <button onClick={() => onDelete(item)}>Remove</button>
+    <span>&nbsp;{item}</span>
+  </>
+)
 
 export default App
 
